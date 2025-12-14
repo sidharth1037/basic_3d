@@ -13,61 +13,44 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import io.github.sceneview.math.Position
 
 /**
- * Displays the X, Y, Z coordinates of a position.
- */
-@Composable
-fun PositionLabel(position: Position) {
-    Text(
-        modifier = Modifier
-            .background(Color.Black.copy(alpha = 0.5f))
-            .padding(8.dp),
-        color = Color.White,
-        text = "X=%.2f, Y=%.2f, Z=%.2f".format(
-            position.x,
-            position.y,
-            position.z
-        )
-    )
-}
-
-/**
- * Provides directional buttons to move a node.
+ * Provides directional buttons that emit move events.
+ * This is a highly performant and reusable pattern. Instead of modifying
+ * state directly, it calls the onMove lambda to report the desired change.
+ * This prevents the composable from causing recompositions in the parent.
+ *
+ * @param onMove A function that is called with the requested change in x and z.
  */
 @Composable
 fun CylinderControls(
-    cylinderUiPosition: MutableState<Position>
+    onMove: (dx: Float, dz: Float) -> Unit
 ) {
     val moveAmount = 0.05f
-
-    // This function handles updating the position state.
-    val onMove: (Position) -> Unit = { newPos ->
-        cylinderUiPosition.value = newPos
-    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // FIX: "Up" should be negative Z, "Down" should be positive Z.
-        Button(onClick = { onMove(cylinderUiPosition.value.copy(z = cylinderUiPosition.value.z - moveAmount)) }) {
+        // UP (-Z direction)
+        Button(onClick = { onMove(0f, -moveAmount) }) {
             Text("Up")
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onMove(cylinderUiPosition.value.copy(x = cylinderUiPosition.value.x - moveAmount)) }) {
+            // LEFT (-X direction)
+            Button(onClick = { onMove(-moveAmount, 0f) }) {
                 Text("Left")
             }
-            Button(onClick = { onMove(cylinderUiPosition.value.copy(x = cylinderUiPosition.value.x + moveAmount)) }) {
+            // RIGHT (+X direction)
+            Button(onClick = { onMove(moveAmount, 0f) }) {
                 Text("Right")
             }
         }
-        Button(onClick = { onMove(cylinderUiPosition.value.copy(z = cylinderUiPosition.value.z + moveAmount)) }) {
+        // DOWN (+Z direction)
+        Button(onClick = { onMove(0f, moveAmount) }) {
             Text("Down")
         }
     }

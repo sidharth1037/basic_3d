@@ -2,8 +2,9 @@ package com.example.mapview
 
 import android.util.Log
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -13,7 +14,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import com.google.android.filament.EntityManager
 import io.github.sceneview.Scene
 import io.github.sceneview.math.Position
@@ -51,9 +51,6 @@ fun MainScene() {
         }
     }
 
-    // This state variable is the single source of truth for the cylinder's world position.
-    val cylinderUiPosition = remember { mutableStateOf(Position(x = 0.85f, y = 0.015f, z = 0.25f)) }
-
     val redMaterial = remember(engine) { materialLoader.createColorInstance(color = androidx.compose.ui.graphics.Color.Red) }
 
     val cylinderNode = remember(redMaterial) {
@@ -61,16 +58,9 @@ fun MainScene() {
             engine = engine,
             radius = 0.01f,
             height = 0.03f,
-            // FIX: Don't use the world position for the center. The center should be relative to the node's own origin.
-            // Using Position() centers the geometry on the node's anchor point.
             center = Position(),
             materialInstance = redMaterial
         )
-    }
-
-    // This effect listens for changes in the UI state and updates the actual 3D node's position.
-    LaunchedEffect(cylinderUiPosition.value) {
-        cylinderNode.position = cylinderUiPosition.value
     }
 
     val childNodes = rememberNodes {
@@ -83,9 +73,8 @@ fun MainScene() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        // Set the initial position of the node once, when the effect first runs.
-        // This avoids compounding the position on hot reloads.
-        cylinderNode.position = cylinderUiPosition.value
+        // Set the initial position of the cylinder node directly.
+        cylinderNode.position = Position(x = 0.85f, y = 0.015f, z = 0.25f)
 
         delay(100)
         try {
@@ -121,24 +110,41 @@ fun MainScene() {
     val cameraManipulator = rememberCameraManipulator()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Scene(
-            modifier = Modifier.fillMaxSize(),
-            engine = engine,
-            modelLoader = modelLoader,
-            materialLoader = materialLoader,
-            childNodes = childNodes,
-            cameraManipulator = cameraManipulator
-        )
-
-        // --- UI OVERLAYS ---
-        Box(modifier = Modifier.align(Alignment.TopStart).padding(16.dp)) {
-            PositionLabel(cylinderUiPosition.value)
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Top 80% for the 3D Scene
+            Box(modifier = Modifier
+                .weight(0.8f)
+                .fillMaxWidth()) {
+                Scene(
+                    modifier = Modifier.fillMaxSize(),
+                    engine = engine,
+                    modelLoader = modelLoader,
+                    materialLoader = materialLoader,
+                    childNodes = childNodes,
+                    cameraManipulator = cameraManipulator
+                )
+            }
+            // Bottom 20% for the controls
+            Box(
+                modifier = Modifier
+                    .weight(0.2f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                // Restore the movement logic since the test is complete.
+                val onMove = remember {
+                    { dx: Float, dz: Float ->
+                        cylinderNode.position = cylinderNode.position.copy(
+                            x = cylinderNode.position.x + dx,
+                            z = cylinderNode.position.z + dz
+                        )
+                    }
+                }
+                CylinderControls(onMove = onMove)
+            }
         }
 
-        Box(modifier = Modifier.align(Alignment.BottomStart).padding(16.dp)) {
-            CylinderControls(cylinderUiPosition)
-        }
-
+        // Loading and error overlays are placed in the root Box to cover the whole screen
         if (isLoading) {
             LoadingView(statusText)
         }
